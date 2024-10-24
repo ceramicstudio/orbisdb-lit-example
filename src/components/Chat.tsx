@@ -1,64 +1,51 @@
 import React, { useEffect } from "react";
 import ChatHeader from "../fragments/chatheader";
 import ChatContent from "../fragments/chatcontent";
+import { env } from "@/env.mjs";
 import ChatInputBox from "../fragments/chatinputbox";
 import { Post, Message } from "../../types";
-import { useCeramicContext } from "../../context";
+import { useOrbisContext } from "@/context/OrbisContext";
 import { ILitNodeClient } from "@lit-protocol/types";
 
-type ChatProps = { address: string, lit: ILitNodeClient };
+type ChatProps = { address: string; lit: ILitNodeClient };
 
 const Chat = ({ address, lit }: ChatProps) => {
   const [chatMessages, setChatMessages] = React.useState<Message[]>([]);
-  const clients = useCeramicContext();
-  const { composeClient } = clients;
-
+  const { orbis, isAuthenticated } = useOrbisContext();
 
   const getMessages = async () => {
-    const posts = await composeClient.executeQuery<{
-      postsIndex: {
-        edges: {
-          node: Post;
-        }[];
-      };
-    }>(`
-    query {
-        postsIndex (last:20) {
-          edges {
-            node {
-              id
-              author{
-                id
-              }
-              body
-              to
-              created
-              ciphertext
-              chain
-              accessControlConditions
-              accessControlConditionType
-            }
-          }
+    try {
+      const user = await orbis.getConnectedUser();
+      if (user) {
+        const query = await orbis
+          .select()
+          .raw(
+            `SELECT *
+              FROM ${env.NEXT_PUBLIC_POST_ID} as post
+              ORDER BY created DESC`
+          )
+          .run();
+        const queryResult = query.rows as Post[];
+        console.log(queryResult);
+        if (queryResult.length) {
+          queryResult.forEach((el: any) => {
+            setChatMessages((prevMessages) => [
+              ...prevMessages,
+              {
+                text: el.body,
+                sentBy: el.controller.split(":")[4]!!,
+                sentAt: new Date(el.created),
+                isChatOwner: address === el.controller.split(":")[4]!!,
+                ...el,
+              },
+            ]);
+          });
         }
       }
-    `);
-    const messageArray: Message[] = [];
-    if(posts.data && posts.data.postsIndex === null){
-      return
+    } catch (error) {
+      console.error(error);
+      return undefined;
     }
-    if (posts.data && posts.data.postsIndex) {
-      posts.data.postsIndex.edges.forEach((el: { node: Post }) => {
-        messageArray.push({
-          text: el.node.body,
-          sentBy: el.node.author.id.split(':')[4]!!,
-          sentAt: new Date(el.node.created),
-          isChatOwner: address === el.node.author.id.split(':')[4]!!,
-          ...el.node
-        });
-      });
-    }
-    setChatMessages(messageArray);
-    // console.log(messages)
   };
 
   /** State to control new messages */
@@ -69,10 +56,9 @@ const Chat = ({ address, lit }: ChatProps) => {
    * "Create" a new message
    */
   const sendANewMessage = (message: Message) => {
-    if(chatMessages){
+    if (chatMessages) {
       setChatMessages((chatMessages) => [...chatMessages, message]);
     }
-    
   };
 
   /**
@@ -80,7 +66,7 @@ const Chat = ({ address, lit }: ChatProps) => {
    */
 
   useEffect(() => {
-    if (localStorage.getItem("did")) {
+    if (localStorage.getItem("orbis:session")) { 
       getMessages();
     }
   }, []);
@@ -94,7 +80,11 @@ const Chat = ({ address, lit }: ChatProps) => {
           numberOfMessages={chatMessages ? chatMessages.length : 0}
         />
         {chatMessages && <ChatContent messages={chatMessages} lit={lit} />}
-        <ChatInputBox sendANewMessage={sendANewMessage} address={address} lit={lit}/>
+        <ChatInputBox
+          sendANewMessage={sendANewMessage}
+          address={address}
+          lit={lit}
+        />
       </div>
     </div>
   );

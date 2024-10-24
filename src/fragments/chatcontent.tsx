@@ -13,6 +13,7 @@ interface ChatContentProps {
 const ChatContent = ({ messages, lit }: ChatContentProps) => {
 
   const handleDecrypt = async (event: any, message: Message) => {
+    console.log(message)
     const encryptedMessage = message.body;
     const ciphertext = message.ciphertext;
     const accessControl = await decodeb64(message.accessControlConditions);

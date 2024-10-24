@@ -1,22 +1,25 @@
 import React from "react";
 import { Message, Post } from "../../types";
+import { env } from "@/env.mjs";
 import DebouncedInput from "./debounced";
 import { encryptWithLit, encodeb64 } from "../../utils/lit";
-import { useCeramicContext } from "../../context";
+import { useOrbisContext } from "@/context/OrbisContext";
 import { ILitNodeClient } from "@lit-protocol/types";
+
+const CONTEXT_ID = env.NEXT_PUBLIC_CONTEXT_ID ?? "";
+const POST_ID = env.NEXT_PUBLIC_POST_ID ?? "";
 
 interface ChatInputBoxProps {
   sendANewMessage: (message: Message) => void;
   address: string;
-  lit: ILitNodeClient
+  lit: ILitNodeClient;
 }
 
 const chain = "ethereum";
 
 const ChatInputBox = ({ sendANewMessage, address, lit }: ChatInputBoxProps) => {
   const [newMessage, setNewMessage] = React.useState("");
-  const clients = useCeramicContext();
-  const { composeClient } = clients;
+  const { orbis, isAuthenticated } = useOrbisContext();
   /**
    * Send message handler
    * Should empty text field after sent
@@ -44,52 +47,52 @@ const ChatInputBox = ({ sendANewMessage, address, lit }: ChatInputBoxProps) => {
         chain
       );
 
-      console.log(ciphertext)
+      console.log(ciphertext);
 
       const stringified = JSON.stringify(accessControlConditions);
       const b64 = new TextEncoder().encode(stringified);
       const encoded = await encodeb64(b64);
 
-      const post: any = await composeClient.executeQuery<{
-        createPosts: {
-          document: Post;
-        };
-      }>(`
-        mutation {
-          createPosts(input: {
-            content: {
-              body: """${dataToEncryptHash}"""
-              to: "${address}"
-              created: "${new Date().toISOString()}"
-              ciphertext: "${ciphertext}"
-              chain: "${chain}"
-              accessControlConditions: "${encoded}"
-              accessControlConditionType: "accessControlConditions"
-            }
-          })
-          {
-            document {
-              body
-              to
-              created
-              ciphertext
-              chain
-              accessControlConditions
-            }
-          }
-        }
-      `);
-      sendANewMessage({
-        sentAt: new Date(post.data.createPosts.document.created),
-        sentBy: address,
-        isChatOwner: true,
-        text: post.data.createPosts.document.body,
-        ...post.data.createPosts.document,
-      });
+      const user = await orbis.getConnectedUser(); // Get the connected user
+      const createQuery = await orbis
+        .insert(POST_ID)
+        .value({
+          body: dataToEncryptHash,
+          to: address,
+          created: new Date().toISOString(),
+          ciphertext,
+          chain,
+          accessControlConditions: encoded,
+          accessControlConditionType: "accessControlConditions",
+        })
+        .context(CONTEXT_ID)
+        .run();
 
-      console.log(post);
-      console.log(address);
-      setNewMessage("");
+      if (createQuery.content) {
+        console.log("Post created successfully");
+        sendANewMessage({
+          sentAt: new Date(createQuery.content.created),
+          sentBy: address,
+          isChatOwner: true,
+          text: createQuery.content.body,
+          body: createQuery.content.body,
+          id: createQuery.id,
+          to: createQuery.content.to,
+          created: createQuery.content.created,
+          ciphertext: createQuery.content.ciphertext,
+          chain: createQuery.content.chain,
+          accessControlConditions: createQuery.content.accessControlConditions,
+          accessControlConditionType:
+            createQuery.content.accessControlConditionType,
+          author: {
+            id: createQuery.controller,
+          },
+        });
+
+        console.log(createQuery);
+        console.log(address);
+        setNewMessage("");
+      }
     }
   };
 
