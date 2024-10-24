@@ -53,7 +53,7 @@ npm run dev
 
 To learn more about Ceramic please visit the following links
 
-- [Ceramic Documentation](https://developers.ceramic.network/learn/welcome/) - Learn more about the Ceramic Ecosystem.
+[Ceramic Documentation](https://developers.ceramic.network/learn/welcome/) - Learn more about the Ceramic Ecosystem.
 
 To learn more about OrbisDB please visit the following links
 
