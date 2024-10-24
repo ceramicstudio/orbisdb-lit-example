@@ -37,6 +37,8 @@ Finally, you will create the post table using the OrbisDB model builder feature 
 
 In your Orbis Studio view, select the "Model Builder" tab at the top and create a new model named "post" using the post definition in [this document](models/tables.sql). Once created, assign the resulting identifier to `NEXT_PUBLIC_POST_ID`. 
 
+*You can also optionally use the `NEXT_PUBLIC_POST_ID` already provided for you in the env.example file. You can find the definition on [Cerscan](https://cerscan.com/mainnet/stream/kjzl6hvfrbw6calfdu4psiffj36vtzjylox0n15vgejdr5jr8d3iotxsnfl3s1c)*
+
 ## Getting Started
 
 You are now ready to run the application.
